@@ -23,34 +23,7 @@ def init_evaluate_board(board):
     bq = len(board.pieces(chess.QUEEN, chess.BLACK))
 
     material = 100*(wp-bp)+320*(wn-bn)+330*(wb-bb)+500*(wr-br)+900*(wq-bq)
-    """
-    pawnsq = sum([centertable[i] for i in board.pieces(chess.PAWN,chess.WHITE)])
-    pawnsq = pawnsq + sum([-centertable[chess.square_mirror(i)]
-       for i in board.pieces(chess.PAWN,chess.BLACK)])
-
-    knightsq = sum([centertable[i]
-       for i in board.pieces(chess.KNIGHT,chess.WHITE)])
-    knightsq = knightsq + sum([-centertable[chess.square_mirror(i)]
-       for i in board.pieces(chess.KNIGHT,chess.BLACK)])
-
-
-    bishopsq = sum([centertable[i]
-       for i in board.pieces(chess.BISHOP,chess.WHITE)])
-    bishopsq = knightsq + sum([-centertable[chess.square_mirror(i)]
-       for i in board.pieces(chess.BISHOP,chess.BLACK)])
-
-
-    rooksq = sum([centertable[i]
-       for i in board.pieces(chess.ROOK,chess.WHITE)])
-    rooksq = knightsq + sum([-centertable[chess.square_mirror(i)]
-       for i in board.pieces(chess.ROOK,chess.BLACK)])
-    
-    queensq = sum([centertable[i]
-       for i in board.pieces(chess.QUEEN,chess.WHITE)])
-    queensq = knightsq + sum([-centertable[chess.square_mirror(i)]
-       for i in board.pieces(chess.QUEEN,chess.BLACK)])
-
-    """ 
+   
     pawnsq = sum([pawntable[i] for i in board.pieces(chess.PAWN, chess.WHITE)])
     pawnsq= pawnsq + sum([-pawntable[chess.square_mirror(i)] 
                                     for i in board.pieces(chess.PAWN, chess.BLACK)])
@@ -204,25 +177,6 @@ centertable = [
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0]
 
-checktable = [
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0]
-
-
-def update_king(board):
-    ki = 0
-    for i in board.pieces(chess.KING, chess.WHITE):
-        ki = i
-    
-  #  for j in checktable:
-
-
 
 piecetypes = [chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING]
 tables = [pawntable, knightstable, bishopstable, rookstable, queenstable, kingstable]
@@ -297,7 +251,7 @@ def unmake_move(board):
     
     return mov
 
-
+#old unused
 def quiesce(alpha, beta,board):
     
     #stand_pat score : fail soft
@@ -349,6 +303,7 @@ def minmax(board,depth, alpha,beta,turn):
                 return best_move
         return best_move
 
+#old unused
 def alphaBetaMax(alpha, beta, depthleft,board):
     bestscore = -9999
     if(depthleft == 0):
@@ -383,6 +338,8 @@ def selectmove(depth, board,turn):
                 bestMove = move
         
         return bestMove
+
+
 
 
 
