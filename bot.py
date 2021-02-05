@@ -1,6 +1,7 @@
 # import for .env variables
 import os, json, requests
 from dotenv import load_dotenv
+import game as Game
 
 APIURL = "https://lichess.org/api/"
 
@@ -14,6 +15,7 @@ class Lichess_Bot:
             raise Exception('Token is empty!')
         self.s = requests.Session()
         self.s.headers.update({ 'Authorization': f'Bearer {TOKEN}'})
+        self.user = self.s.get(APIURL+'account').json()
         self.ongoingGames = dict()
 
 
@@ -32,9 +34,9 @@ class Lichess_Bot:
         # print("url: ", response.url)
         # print("sent headers: ", response.request.headers)
         # print("code:", response.status_code)
-        if response.status_code != requests.codes.ok:
-            print("error retrieving stream event: ", response.reason)
-            print("response: ", response.text)
+        if response.status_code != 200:
+            print("error retrieving stream event:", response.reason)
+            print("response:", response.text)
         else:
             print('Valid response')
             # iter through the events, comming in real time (infinite loop if response.close is not called)
@@ -51,52 +53,77 @@ class Lichess_Bot:
 
 
     def __game_start(self, gameID):
-        rep = self.s.get(APIURL+'bot/game/stream/'+gameID)
+        rep = self.s.get(APIURL+'bot/game/stream/'+gameID, stream=True)
+        if rep.status_code != 200:
+            print('Game stream couldn\'t be reived. Error code:', rep.status_code, 'Error message:', rep.reason)
+        else:
+            print('Game {', gameID, '} stream has been received!')
         # iter through the events of the game
+        current = None
         for line in rep.iter_lines():
             if line:
                 event = json.loads(line)
                 print(event)
-                """
                 if event['type'] == 'chatLine':
-                    if event['room'] == 'player':
+                    if False and event['room'] == 'player' and event['username'] != self.user['username']:
                         self.__send_message(gameID, 'player', 'Hey '+event['username']+', don\'t you think you should resign?')
                 elif event['type'] == 'gameFull':
-                    # all info to create the game
-                    # TODO
+                    if event['state']['status'] == 'started':
+                        self.__create_game(event)
                 elif event['type'] == 'gameState':
+                    # number of moves even ==> white turn else black turn
                     if event['status'] == 'started':
                         moves = event['moves'].split(' ')
-
+                        if self.ongoingGames[gameID].lastmove == moves[-1]:
+                            # Handle Draw events
+                            # TODO
+                            print('TODO Draw events')
+                        else:
+                            current.make_move(moves[-1])
+                            botMove = current.get_move()
+                            if not self.__send_move(gameID, botMove):
+                                print('invalid move, need to redo code!')
                     elif event['status'] == 'resign':
                         if event['winner'] == self:
                             self.__send_message(gameID, 'player', 'GG EZ')
                         else:
                             self.__send_message(gameID, 'player', 'GG WP')
-                """
+
+    def __create_game(self, event):
+        """ Create a chessGame from the event given """
+        game = Game.ChessGame(event['id'], event)
+        self.ongoingGames[event['id']] = game
+        game.isWhite = event['white']['id'] == self.user['id']
+        moves = event['state']['moves'].split(' ')
+        for move in moves:
+            game.make_move(move)
+            game.turn += 1
+        game.lastmove = moves[-1]
+        return game
 
     def __send_message(self, gameID, chan, msg):
         """ 
         Send a message to the room 'chan' with content 'msg'
         """
-        rep = self.s.post(APIURL+'bot/game/'+gameID+'/chat', params={ 'room': chan, 'text': msg })
+        rep = self.s.post(APIURL+'bot/game/'+gameID+'/chat', data={ 'room': chan, 'text': msg })
         if rep.status_code != 200:
-            print('send_messages requests not ok, code: ', rep.status_code, '\nerror: ', rep.content['error'], '\nreason: ', rep.text)
+            print('send_messages requests not ok, code: ', rep.status_code, '\nerror: ', rep.reason, '\nreason: ', rep.text)
         rep.close()
 
 
     def __send_move(self, gameID, move, draw=False):
-        with requests.post(APIURL+'bot/game/'+gameID+'/move/'+move, params={ 'offeringDraw': draw }) as rep:
+        with self.s.post(APIURL+'bot/game/'+gameID+'/move/'+move, data={ 'offeringDraw': draw }) as rep:
             if rep.status_code != 200 :
-                print('send_move requests not ok, code: ', rep.status_code, '\nerror: ', rep.content['error'], '\nreason: ', rep.text)
-            return rep.content['ok']
+                print('send_move requests not ok, code: ', rep.status_code, '\nerror: ', rep.reason, '\nreason: ', rep.text)
+                return False
+            return True
 
     #region Challenges
 
     def __handle_challenge(self, challenge):
         
         timeControl = challenge['timeControl']['type'] if challenge['timeControl']['type'] != 'clock' else challenge['timeControl']['show']
-        print('Recieved challenge. id: ', challenge['id'], '. Challenger: ', challenge['challenger']['id'], '. Game type: ', challenge['variant']['name'], '. Rated: ', challenge['rated'], '. Time ', timeControl, '.')
+        print('Recieved challenge. id:', challenge['id'], 'Challenger:', challenge['challenger']['id'], 'Game type:', challenge['variant']['name'], 'Rated:', challenge['rated'], 'Time', timeControl)
         if (challenge['rated']):
             self.__reject_challenge(challenge['id'])
         else:
@@ -108,7 +135,7 @@ class Lichess_Bot:
 
         rep = self.s.request('POST', APIURL+'challenge/'+challengeID+'/accept')
         if (rep.status_code != 200):
-            print('Challenge couldn\'t be accepted. Error code: ', rep.status_code, '. Error message: ', json.loads(rep.content)['error'], '.')
+            print('Challenge couldn\'t be accepted. Error code:', rep.status_code, 'Error message:', json.loads(rep.content)['error'])
         else:
             print('Challenge accepted.\n')
         rep.close()
@@ -118,7 +145,7 @@ class Lichess_Bot:
 
         rep = self.s.request('POST', APIURL+'challenge/'+challengeID+'/reject')
         if (rep.status_code != 200):
-            print('Challenge couldn\'t be rejected. Error code: ', rep.status_code, '. Error message: ', rep.json()['error'], '.')
+            print('Challenge couldn\'t be rejected. Error code:', rep.status_code, 'Error message:', rep.json()['error'])
         else:
             print('Challenge rejected.\n')
         rep.close()
@@ -134,6 +161,7 @@ if __name__=="__main__":
     bot = Lichess_Bot(TOKEN)
     bot.start()
 
+#region lychess api
 """ Lychess lib api
 # import for command lines arguments
 import sys, getopt
@@ -152,3 +180,4 @@ client = berserk.Client(session=session)
 if sys.argv[1] == '-u':
     client.account.upgrade_to_bot()
 """
+#endregion

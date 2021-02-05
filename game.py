@@ -1,20 +1,22 @@
 import chess as chess
 import chess.polyglot
 
-class Game:
+class ChessGame:
     """ Class for a chess game."""
-    def __init__(self, gameID, opponent="", color="white"):
+    def __init__(self, gameID, gameFull):
         self.gameID = gameID
-        self.opponent = opponent
-        self.color = color
+        self.gameFull = gameFull
         self.board = chess.Board()
+        self.isWhite = True
+        self.turn = 0
+        self.lastmove = ''
 
-    def select_move(depth, turn):
+    def select_move(self, depth, turn):
         bestMove = chess.Move.null()
         bestValue = -float('inf')
 
         for move in self.board.legal_moves:
-            make_mov(move,self.board)
+            self.make_move(move)
             boardValue = minmax(self.board,depth-1,-float('inf'),float('inf'), not turn)
             unmake_move(self.board)
             if boardValue >= bestValue:
@@ -23,4 +25,11 @@ class Game:
         
         return bestMove.uci()
 
-    def make_move(move):
+    def make_move(self, move):
+        # TODO
+        print('TODO make move')
+
+    def accept_draw(self):
+        # TODO
+        print('TODO check if draw should be accepted.')
+        return False
