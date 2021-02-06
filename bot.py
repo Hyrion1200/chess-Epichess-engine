@@ -66,7 +66,7 @@ class Lichess_Bot:
                         else:
                             current.make_move(moves[-1])
                             current.lastmove = moves[-1]
-                            if current.turn % 2 == current.siWhite:
+                            if current.board.turn:
                                 botMove = current.get_move()
                                 if not self.__send_move(gameID, botMove):
                                     self.__send_resign(gameID)
@@ -127,7 +127,7 @@ class Lichess_Bot:
 
     def __handle_draw(self, gameID, wdraw, bdraw):
         current = self.ongoingGames[gameID]
-        if (bdraw and current.isWhite or wdraw and not current.isWhite) and current. current.accept_draw():
+        if (bdraw and current.isWhite or wdraw and not current.isWhite) and current.current.accept_draw():
             self.__send_draw(gameID)
 
     def __send_move(self, gameID, move, draw=False):
