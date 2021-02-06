@@ -1,6 +1,7 @@
 # import for .env variables
 import os, json, requests, dotenv
 import game as Game
+import chess as chess
 
 APIURL = "https://lichess.org/api/"
 
@@ -64,9 +65,9 @@ class Lichess_Bot:
                         if self.ongoingGames[gameID].lastmove == moves[-1]:
                             self.__handle_draw(gameID, event['wdraw'], event['bdraw'])
                         else:
-                            current.make_move(moves[-1])
+                            current.make_move(chess.Move.from_uci(moves[-1]))
                             current.lastmove = moves[-1]
-                            if current.board.turn:
+                            if (current.board.turn and current.isWhite) or (not current.isWhite and not current.board.turn):
                                 botMove = current.get_move()
                                 if not self.__send_move(gameID, botMove):
                                     self.__send_resign(gameID)
@@ -86,7 +87,7 @@ class Lichess_Bot:
         moves = event['state']['moves'].split(' ')
         for move in moves:
             if move != '':
-                game.make_move(move)
+                game.make_move(chess.Move.from_uci(move))
         game.lastmove = moves[-1]
         return game
 
