@@ -1,5 +1,5 @@
 # import for .env variables
-import os, json, requests, dotenv
+import os, json, requests, dotenv, threading
 import game as Game
 import chess as chess
 
@@ -15,9 +15,12 @@ class Lichess_Bot:
         self.s.headers.update({ 'Authorization': f'Bearer {TOKEN}'})
         self.user = self.s.get(APIURL+'account').json()
         self.ongoingGames = dict()
+        self.threadGames = dict()
 
     def start(self):
-        self.__bot_events()
+        """ Start a bot inside a thread """
+        self.botThread = threading.Thread(target=self.__bot_events, name=f'bot', args=())
+        self.botThread.start()
 
     def __bot_events(self):
         """ Handle all events related to the bot only """
@@ -32,7 +35,9 @@ class Lichess_Bot:
                     event = json.loads(line.decode('utf8'))
                     # print(event)
                     if event['type'] == 'gameStart':
-                        self.__game_start(event['game']['id'])
+                        thr = threading.Thread(target=self.__game_start, args=(event['game']['id'],))
+                        thr.start()
+                        self.threadGames[event['game']['id']] = thr
                     elif event['type'] == 'challenge':
                         self.__handle_challenge(event['challenge'])
                     elif event['type'] == 'gameFinish':
@@ -74,10 +79,15 @@ class Lichess_Bot:
                                     self.__send_message(gameID, "player", 'I wasn\'t able to do anythin on this, well played!')
                                     print('invalid move, *resigning*, need to redo code!')
                     elif event['status'] == 'resign':
-                        if event['winner'] == self:
+                        if (event['winner'] == 'white') == current.isWhite:
                             self.__send_message(gameID, 'player', 'GG EZ')
+                            break
                         else:
                             self.__send_message(gameID, 'player', 'GG WP')
+                            break
+                    else:
+                        break
+        rep.close()
 
     def __create_game(self, event):
         """ Create a chessGame from the event given """
@@ -89,6 +99,12 @@ class Lichess_Bot:
             if move != '':
                 game.make_move(chess.Move.from_uci(move))
         game.lastmove = moves[-1]
+        if (game.board.turn and game.isWhite) or (not game.isWhite and not game.board.turn):
+            botMove = game.get_move()
+            if not self.__send_move(event['id'], botMove):
+                self.__send_resign(event['id'])
+                self.__send_message(event['id'], "player", 'I wasn\'t able to do anythin on this, well played!')
+                print('invalid move, *resigning*, need to redo code!')
         return game
 
     def __accept_challenge(self, challengeID):
@@ -128,7 +144,7 @@ class Lichess_Bot:
 
     def __handle_draw(self, gameID, wdraw, bdraw):
         current = self.ongoingGames[gameID]
-        if (bdraw and current.isWhite or wdraw and not current.isWhite) and current.current.accept_draw():
+        if (bdraw and current.isWhite or wdraw and not current.isWhite) and current.accept_draw():
             self.__send_draw(gameID)
 
     def __send_move(self, gameID, move, draw=False):
@@ -157,6 +173,7 @@ class Lichess_Bot:
 
     def __handle_endofgame(self, gameID):
         del self.ongoingGames[gameID]
+        del self.threadGames[gameID]
         # add anything to do after receiving end of game event
 
 if __name__=="__main__":

@@ -29,7 +29,6 @@ class ChessGame:
         return bestMove.uci()
 
     def make_move(self, move):
-        # TODO
         self.__update_eval(move,self.board.turn)
         self.board.push(move)
         return move
@@ -305,4 +304,3 @@ class ChessGame:
             return eval
         else:
             return -eval
-
