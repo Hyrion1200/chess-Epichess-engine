@@ -39,7 +39,7 @@ class ChessGame:
         return mov
 
     def get_move(self):
-        move = self.select_move(4,self.board.turn)
+        move = self.select_move(3,self.board.turn)
         print(move + " has been played")
         print(self.board)
         return move
