@@ -28,7 +28,7 @@ class Lichess_Bot:
         print(f'Logged in as {self.profile["username"]}')
 
     def start(self):
-        print("started")
+        self.__handle_events()
 
     def __handle_events(self):
         while True:
@@ -39,7 +39,7 @@ class Lichess_Bot:
                             self.client, event['game']['id'])
                         game.start()
                     elif event['type'] == 'challenge':
-                        self.__handle_challenge(event)
+                        self.__handle_challenge(event['challenge'])
                     elif event['type'] == 'gameFinish':
                         logging.debug(f'Game ended: {event}')
             except berserk.exceptions.ResponseError as e:
@@ -55,7 +55,7 @@ class Lichess_Bot:
         logging.info(f'Recieved challenge. ID: {event["id"]}, Challenger: {event["challenger"]["id"]},',
                      f'Game type: {event["variant"]["name"]}, Rated: {event["rated"]}, Time: {timeControl}.')
         try:
-            if (event['challenge']['rated']):
+            if (event['rated']):
                 self.client.bots.decline_challenge(event['id'])
             else:
                 self.client.bots.accept_challenge(event['id'])
